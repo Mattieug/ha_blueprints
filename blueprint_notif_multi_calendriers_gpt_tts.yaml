@@ -1,0 +1,364 @@
+blueprint:
+  name: Notification Agenda Multi-Calendriers
+  source_url: https://github.com/Mattieug/ha_blueprints/blob/main/blueprint_notif_multi_calendriers_gpt_tts.yaml
+  description:
+    Envoie des notifications Telegram et voix basées sur jusqu’à 5 agendas, la météo et la localisation.
+    D'après un script de fixtse (https://github.com/fixtse/blueprints/blob/main/multiple_notify_agent_calendar_agenda.yaml)
+  domain: automation
+  author: mattieug
+  input:
+    weather_entity:
+      name: Entité Météo
+      description: Entité de la météo à utiliser.
+      selector:
+        entity:
+          domain: weather
+    zone_entity:
+      name: Entité Zone
+      description: Entité de la zone pour la localisation.
+      selector:
+        entity:
+          domain: zone
+    calendar_entity_1:
+      name: Calendrier 1
+      description: Premier calendrier à surveiller.
+      selector:
+        entity:
+          domain: calendar
+    calendar_entity_2:
+      name: Calendrier 2
+      description: Second calendrier à surveiller.
+      selector:
+        entity:
+          domain: calendar
+    calendar_entity_3:
+      name: Calendrier 3
+      description: Troisième calendrier à surveiller.
+      selector:
+        entity:
+          domain: calendar
+    calendar_entity_4:
+      name: Calendrier 4
+      description: Quatrième calendrier à surveiller.
+      selector:
+        entity:
+          domain: calendar
+    calendar_entity_5:
+      name: Calendrier 5
+      description: Cinquième calendrier à surveiller.
+      selector:
+        entity:
+          domain: calendar
+    calendar_duration:
+      name: Durée de l'Agenda
+      description: Durée pour laquelle les événements du calendrier sont listés.
+      default:
+        hours: 18
+      selector:
+        duration:
+    trigger_time_1:
+      name: Heure du Premier Déclencheur
+      description: Heure à laquelle le premier déclencheur se déclenche.
+      selector:
+        time: {}
+    trigger_time_2:
+      name: Heure du second Déclencheur
+      description: Heure à laquelle le second déclencheur se déclenche.
+      selector:
+        time: {}
+    trigger_time_3:
+      name: Heure du troisième Déclencheur
+      description: Heure à laquelle le troisième déclencheur se déclenche.
+      selector:
+        time: {}
+    telegram_notification_entity:
+      name: Entité de Notification Telegram
+      description: Entité Telegram utilisée pour envoyer des notifications.
+      default: "notify."
+      selector:
+        text: {}
+    media_player_entity:
+      name: Entité Media Player
+      description: Entité du lecteur multimédia pour la lecture des annonces.
+      selector:
+        entity:
+          domain: media_player
+    media_player_volume:
+      name: Volume des annonces
+      description: Niveau de volume pour les annonces
+      selector:
+        number:
+          min: 0.0
+          max: 1.0
+          step: 0.01
+    media_content_id:
+      name: ID du fichier audio de notification
+      description: Identifiant du contenu audio à jouer.
+      default: media-source://media_source/local/JingleB.mp3
+      selector:
+        text: {}
+    prompt_gpt:
+      name: Prompt pour GPT
+      description: Consignes pour GPT
+      selector:
+        text:
+          multiline: true
+          type: text
+      default: |-
+        Génère une annonce en français pour une notification qui sera lue à l'utilisateur avec des informations utiles. 
+        N'utilise surtout pas de format markdown qui ne serait pas reconnu par le moteur TextToSpeech. 
+        Tu es un agent personnel utile qui génère du texte pour l'utilisateur : 
+          - Tes réponses sont utiles, amicales, chaleureuses, perspicaces avec un peu d'humour.  
+          - Tes réponses ne sont pas techniques et n'incluent pas de détails internes de Home Assistant comme les entités dans les réponses.  
+          - Tes messages aident l'utilisateur à gérer sa journée en fonction de l'heure précise actuelle et des agendas.
+          - Commence toujours par indiquer la date et l'heure et le saint du jour.
+          - Les 3 premiers calendriers appartiennent à 3 enfants différents Marilou, Quentin et Camille (attention c'est un garçon), le 4eme aux parents et le dernier contient les jours fériés, 
+          - Utilise le nom du calendrier pour t'y référer, fournis des recommandations individuelles pour chaque calendrier, et fais des remarques spéciales si certains événements correspondent dans le temps et que le titre ou la description fait mention entre les calendriers
+          - Note les conditions météorologiques inhabituelles pour le lieu et la période de l'année (mais pas de détails banals comme "0% de chance de précipitations")
+          - Combien de temps reste-t-il jusqu'au premier cour ou rendez-vous
+          - Tout ce qui peut être spécial ou unique, comme célébrer un anniversaire. Attention à rester utile, ne pas ajouter de phrase comme "aujourd'hui pas d'anniversaire" ou "pas de jour férié" ou "pas d'évènement"
+          - S'il n'y a rien à signaler de particulier (anniversaire ou jour férié), ne le mentionne pas.
+          - Aurel&Matt correspond au calendrier des parents : Aurélia et Mattieu.
+          - Toujours indiquer l'heure à laqelle le prochain evenement commence et se termine
+          - pour les enfants, donne un aperçu des cours des prochaines heures de la journee et du lendemain.
+          - Indiquer si un professeur est absent ou un cours annulé. ne rien dire si ce n'est pas le cas.
+          - LV2 signifie langue vivante 2. Remplace l'abréviation.
+          - Mets le nom des matières en minuscules
+          - Genere l'annonce sous forme d'un poeme avec des rimes riches
+          - Ajoute une petite phrase à propos de notre chien Sloubi pour faire rire les enfants
+          - Attention à toujours etre precis sur les horaires des evenements
+    conversation_agent_id:
+      name: ID de l'Agent de Conversation
+      description: "ID de l'agent de conversation à utiliser (Agent GPT pour que le script fonctionne)"
+      selector:
+        conversation_agent:
+    tts_service:
+      name: Service TTS
+      description: Service de synthèse vocale à utiliser pour lire les notifications.
+      selector:
+        entity:
+          domain: tts
+
+trigger:
+  - platform: time
+    at: !input "trigger_time_1"
+  - platform: time
+    at: !input "trigger_time_2"
+  - platform: time
+    at: !input "trigger_time_3"
+
+action:
+  - variables:
+      weather_entity: !input "weather_entity"
+      zone_entity: !input "zone_entity"
+      calendar_entity_1: !input "calendar_entity_1"
+      calendar_entity_2: !input "calendar_entity_2"
+      calendar_entity_3: !input "calendar_entity_3"
+      calendar_entity_4: !input "calendar_entity_4"
+      calendar_entity_5: !input "calendar_entity_5"
+      calendar_duration: !input "calendar_duration"
+      conversation_agent: !input "conversation_agent_id"
+      prompt: !input "prompt_gpt"
+      agenda_1: ""
+      agenda_2: ""
+      agenda_3: ""
+      agenda_4: ""
+      agenda_5: ""
+
+  - alias: Fetch First Calendar Agenda
+    service: calendar.list_events
+    data:
+      duration:
+        hours: 18
+        minutes: 0
+        seconds: 0
+    target:
+      entity_id: !input "calendar_entity_1"
+    response_variable: agenda_1
+  - alias: Fetch Second Calendar Agenda
+    service: calendar.list_events
+    data:
+      duration: !input "calendar_duration"
+    target:
+      entity_id: !input "calendar_entity_2"
+    response_variable: agenda_2
+  - alias: Fetch Third Calendar Agenda
+    service: calendar.list_events
+    data:
+      duration: !input "calendar_duration"
+    target:
+      entity_id: !input "calendar_entity_3"
+    response_variable: agenda_3
+  - alias: Fetch 4 Calendar Agenda
+    service: calendar.list_events
+    data:
+      duration: !input "calendar_duration"
+    target:
+      entity_id: !input "calendar_entity_4"
+    response_variable: agenda_4
+    enabled: true
+  - alias: Fetch 5 Calendar Agenda
+    service: calendar.list_events
+    data:
+      duration: !input "calendar_duration"
+    target:
+      entity_id: !input "calendar_entity_5"
+    response_variable: agenda_5
+    enabled: true
+  - alias: Conversation Agent Notification Text
+    service: conversation.process
+    data:
+      text: >-
+        Heure: {{ now() }}
+
+        Latitude: {{ state_attr(zone_entity, 'latitude') | round(1) }}
+
+        Longitude: {{ state_attr(zone_entity, 'longitude') | round(1) }}
+
+
+
+        {%- set forecast = state_attr(weather_entity, 'forecast')[0] %}
+
+        {%- set temperature_unit = state_attr(weather_entity,'temperature_unit')
+        -%}
+
+        Météo: {{ forecast.condition }} ({{
+        forecast.temperature}}{{temperature_unit }}, {{ forecast.precipitation
+        }}% precipitation)
+
+        Calendar "{{ state_attr(calendar_entity_1, 'friendly_name') }}" events
+        for the next {{ calendar_duration.hours }} hours:
+
+        {%- if agenda_1.events %}
+          {%- for event in agenda_1.events %}
+          - Summary: {{ event.summary }}
+            Start-End: {% if event.start is defined %}{{ event.start }} to {{ event.end }}{% else %}All Day{% endif %}
+            {%- if event.description is defined %}
+            Description: {{ event.description }}
+            {% endif -%}
+            {%- if event.location is defined %}
+              Location: {{ event.location }}
+            {% endif -%}
+          {%- endfor %}
+        {%- else %}
+          - No upcoming events.
+        {%- endif %}
+
+        Calendar "{{ state_attr(calendar_entity_2, 'friendly_name') }}" events
+        for the next {{ calendar_duration.hours }} hours:
+          {%- if agenda_2.events %}
+            {%- for event in agenda_2.events %}
+            - Summary: {{ event.summary }}
+              Start-End: {% if event.start is defined %}{{ event.start }} to {{ event.end }}{% else %}All Day{% endif %}
+              {%- if event.description is defined %}
+              Description: {{ event.description }}
+              {% endif -%}
+              {%- if event.location is defined %}
+                Location: {{ event.location }}
+              {% endif -%}
+            {%- endfor %}
+          {%- else %}
+            - No upcoming events.
+          {%- endif %}
+
+        Calendar "{{ state_attr(calendar_entity_3, 'friendly_name') }}" events
+        for the next {{ calendar_duration.hours }} hours:
+          {%- if agenda_3.events %}
+            {%- for event in agenda_3.events %}
+            - Summary: {{ event.summary }}
+              Start-End: {% if event.start is defined %}{{ event.start }} to {{ event.end }}{% else %}All Day{% endif %}
+              {%- if event.description is defined %}
+              Description: {{ event.description }}
+              {% endif -%}
+              {%- if event.location is defined %}
+                Location: {{ event.location }}
+              {% endif -%}
+            {%- endfor %}
+          {%- else %}
+            - No upcoming events.
+          {%- endif %}
+
+        Calendar "{{ state_attr(calendar_entity_4, 'friendly_name') }}" events
+        for the next {{ calendar_duration.hours }} hours:
+          {%- if agenda_4.events %}
+            {%- for event in agenda_4.events %}
+            - Summary: {{ event.summary }}
+              Start-End: {% if event.start is defined %}{{ event.start }} to {{ event.end }}{% else %}All Day{% endif %}
+              {%- if event.description is defined %}
+              Description: {{ event.description }}
+              {% endif -%}
+              {%- if event.location is defined %}
+                Location: {{ event.location }}
+              {% endif -%}
+            {%- endfor %}
+          {%- else %}
+            - No upcoming events.
+          {%- endif %}
+
+        Calendar "{{ state_attr(calendar_entity_5, 'friendly_name') }}" events
+        for the next {{ calendar_duration.hours }} hours:
+          {%- if agenda_5.events %}
+            {%- for event in agenda_5.events %}
+            - Summary: {{ event.summary }}
+              Start-End: {% if event.start is defined %}{{ event.start }} to {{ event.end }}{% else %}All Day{% endif %}
+              {%- if event.description is defined %}
+              Description: {{ event.description }}
+              {% endif -%}
+              {%- if event.location is defined %}
+                Location: {{ event.location }}
+              {% endif -%}
+            {%- endfor %}
+          {%- else %}
+            - No upcoming events.
+          {%- endif %}
+          
+        {{ prompt }}
+      agent_id: !input "conversation_agent_id"
+    response_variable: agent
+  - variables:
+      reponse_gpt: "{{ agent.response.speech.plain.speech }}"
+  - alias: Send notification
+    service: !input "telegram_notification_entity"
+    data:
+      title: "{{ now().strftime('%A') }} Agenda"
+      message: "{{ reponse_gpt }}"
+  - service: tts.clear_cache
+    data: {}
+  - alias: Create Snapshot of Current Media State
+    service: scene.create
+    data:
+      scene_id: current_state_temp
+      snapshot_entities:
+        - !input "media_player_entity"
+  - service: media_player.volume_set
+    data:
+      volume_level: 0.79
+    target:
+      entity_id: !input "media_player_entity"
+  - service: media_player.play_media
+    target:
+      entity_id: !input "media_player_entity"
+    data:
+      media_content_id: !input "media_content_id"
+      media_content_type: audio/mpeg
+  - service: tts.speak
+    data:
+      cache: false
+      media_player_entity_id: !input "media_player_entity"
+      message: "{{ reponse_gpt }}"
+      language: fr
+    target:
+      entity_id: !input "tts_service"
+  - service: media_player.play_media
+    target:
+      entity_id: !input "media_player_entity"
+    data:
+      media_content_id: !input "media_content_id"
+      media_content_type: audio/mpeg
+    enabled: true
+  - alias: Restore Original Media Player State
+    service: scene.turn_on
+    data: {}
+    target:
+      entity_id: scene.current_state_temp
+mode: restart
